@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Álbum 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Great+Vibes&family=DM+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+/* Conceito: um livro de pano verde, com folhas que se viram em 3D sobre uma mesa clara (ou escura).
+   As páginas são sempre de papel, em qualquer tema. */
+:root {
+  --bg: #f7e8ea;
+  --bg2: #efd3da;
+  --fg: #3b1b27;
+  --muted: #8a5a69;
+  --line: #e0bcc6;
+  --accent: #a83a5c;
+
+  --paper: #fffaf6;
+  --paper-edge: #f6e4e3;
+  --ink: #3f2331;
+  --ink-soft: #8a6574;
+  --pgold: #b04566;
+  --frame: #fffdfb;
+
+  --cover: #7b1e3f;
+  --cover-dark: #521229;
+  --foil: #f2c4b0;
+
+  --font-display: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --font-body: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-script: "Great Vibes", "Snell Roundhand", "Brush Script MT", cursive;
+  --font-ui: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --pw: min(calc((100vw - 64px) / 2), calc((100svh - 215px) * 0.746), 480px);
+  --ph: calc(var(--pw) * 1.34);
+}
+@media (max-width: 759px) {
+  :root { --pw: min(calc(100vw - 40px), calc((100svh - 215px) * 0.746), 440px); }
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1f0e15; --bg2: #351a26; --fg: #f7e4e9; --muted: #c99cab; --line: #4d2738;
+    --accent: #f2a9bd;
+    --paper: #f1e4e1; --paper-edge: #e3d1cf; --frame: #f8eeec;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1f0e15; --bg2: #351a26; --fg: #f7e4e9; --muted: #c99cab; --line: #4d2738;
+  --accent: #f2a9bd;
+  --paper: #f1e4e1; --paper-edge: #e3d1cf; --frame: #f8eeec;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  min-height: 100svh;
+  padding-block: 12px 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  background-image: radial-gradient(ellipse 80% 60% at 50% 45%, var(--bg2), var(--bg) 70%);
+  background-attachment: fixed;
+}
+
+/* ---------- barra de topo e navegação ---------- */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; flex-wrap: wrap; }
+.top .name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; letter-spacing: .01em; }
+.actions { display: flex; gap: 8px; }
+button {
+  font: 500 .875rem/1 var(--font-ui);
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .7rem 1.1rem;
+  cursor: pointer;
+  transition: border-color .2s, background .2s, opacity .2s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .35; cursor: default; }
+button.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+.stage {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  perspective: 2600px;
+  overflow-x: clip;
+  padding-block: 22px 10px;
+  position: relative;
+}
+.tilt {
+  position: relative;
+  width: 0;
+  height: var(--ph);
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 7deg)) rotateY(var(--ry, 0deg));
+  transition: transform .35s ease-out;
+}
+.floor {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: calc(var(--pw) * 2.15);
+  height: calc(var(--pw) * .16);
+  margin-left: calc(var(--pw) * -1.075);
+  background: radial-gradient(ellipse at center, rgba(80,20,40,.34), rgba(0,0,0,0) 68%);
+  filter: blur(6px);
+  transition: transform .9s cubic-bezier(.45,.05,.2,1);
+  pointer-events: none;
+}
+.book {
+  position: absolute;
+  left: 0; top: 0;
+  width: var(--pw);
+  height: var(--ph);
+  font-size: calc(var(--pw) / 24);
+  transform-style: preserve-3d;
+  transition: transform .9s cubic-bezier(.45,.05,.2,1);
+  color: var(--ink);
+}
+.leaf {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transition: transform .95s cubic-bezier(.45,.05,.2,1);
+}
+.face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 0 .3em .3em 0;
+  background: var(--paper);
+  cursor: pointer;
+}
+.face.back { transform: rotateY(180deg); }
+.leaf { pointer-events: none; }
+.face { pointer-events: none; }
+.face.vis { pointer-events: auto; }
+.face.page::after, .face.endpaper::after, .face.blank::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.2), rgba(0,0,0,.04) 5%, rgba(0,0,0,0) 12%, rgba(0,0,0,0) 93%, rgba(0,0,0,.07));
+}
+.face.page, .face.blank {
+  background: linear-gradient(100deg, var(--paper) 60%, var(--paper-edge));
+}
+
+/* ---------- capa, guardas, contracapa (pano) ---------- */
+.face.cover, .face.backcover, .face.endpaper {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 1px, transparent 1px 3px),
+    var(--cover);
+  color: var(--foil);
+}
+.face.cover, .face.backcover { border-radius: 0 .5em .5em 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.face.cover::before, .face.backcover::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 4.5%; width: .5em;
+  background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(255,255,255,.07) 55%, rgba(0,0,0,0));
+  pointer-events: none;
+}
+.face.endpaper { background:
+    repeating-linear-gradient(45deg, rgba(242,196,176,.09) 0 1px, transparent 1px 1.1em),
+    repeating-linear-gradient(-45deg, rgba(242,196,176,.09) 0 1px, transparent 1px 1.1em),
+    var(--cover-dark);
+  display: grid; place-items: center; padding: 3em 2.4em;
+}
+.foilbox {
+  position: absolute;
+  inset: 1.5em 1.5em 1.5em 2.4em;
+  border: 1px solid color-mix(in srgb, var(--foil) 70%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--foil) 35%, transparent);
+  outline-offset: .35em;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .8em;
+  padding: 1.6em 1.2em;
+  text-align: center;
+}
+.cover h1 {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 2.35em; line-height: 1.02; margin: .1em 0 0;
+  text-wrap: balance; letter-spacing: .01em;
+  text-shadow: 0 1px 0 rgba(0,0,0,.4);
+}
+.cover .owner-label { font: 500 .6em/1.3 var(--font-ui); letter-spacing: .26em; text-transform: uppercase; color: var(--foil); margin: 0; opacity: .9; }
+.cover .owner { font-family: var(--font-script); font-weight: 400; font-size: 3.1em; line-height: 1; margin: -.05em 0 .05em; color: var(--foil); text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+.cover .flourish { display: flex; align-items: center; gap: .6em; color: var(--foil); font-size: .8em; margin: 0; }
+.cover .flourish::before, .cover .flourish::after { content: ""; width: 3em; height: 1px; background: color-mix(in srgb, var(--foil) 70%, transparent); }
+.cover .foilbox { gap: .5em; padding: 1.3em 1em; }
+.cover .photo.arch { width: 46%; }
+.cover h1 { font-size: 2em; }
+.cover .sub { font-size: 1.1em; }
+.cover .sub { font-family: var(--font-display); font-style: italic; font-size: 1.2em; margin: 0; opacity: .9; }
+.cover .eyebrow, .backcover .eyebrow { color: var(--foil); }
+.ded { font-family: var(--font-display); font-style: italic; font-size: 1.5em; line-height: 1.35; text-align: center; margin: 0; white-space: pre-wrap; max-width: 90%; text-wrap: balance; }
+.backcover { display: grid; place-items: center; }
+.backcover .fim { font-family: var(--font-display); font-style: italic; font-size: 2em; margin: .2em 0 0; }
+.emblem { width: 3.4em; height: 3.4em; border: 1px solid var(--foil); border-radius: 50%; display: grid; place-items: center; margin-inline: auto; }
+.emblem::after { content: "♥"; font-size: 1.5em; line-height: 1; color: var(--foil); }
+
+/* ---------- fotografias ---------- */
+.photo { margin: 0; position: relative; overflow: hidden; background: var(--paper-edge); }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; user-select: none; }
+.photo.arch { width: 62%; aspect-ratio: 4 / 5; border-radius: 50% 50% .2em .2em / 36% 36% .2em .2em; outline: 1px solid var(--foil); outline-offset: .3em; }
+.frame {
+  background: var(--frame);
+  padding: .55em;
+  box-shadow: 0 .1em .15em rgba(0,0,0,.18), 0 .6em 1.2em -.4em rgba(0,0,0,.28);
+  transform: rotate(var(--r, -1deg));
+  position: relative;
+  display: flex; flex-direction: column;
+}
+.frame::before {
+  content: ""; position: absolute; top: -.7em; left: 50%; width: 4.2em; height: 1.3em; margin-left: -2.1em;
+  background: color-mix(in srgb, var(--foil) 55%, transparent);
+  transform: rotate(-3deg);
+  box-shadow: 0 0 .2em rgba(0,0,0,.12);
+  z-index: 2;
+}
+.frame .photo { flex: 1; min-height: 0; }
+
+/* ---------- páginas de conteúdo ---------- */
+.inner { position: absolute; inset: 0; padding: 2.1em 2em 2.7em 2.6em; display: flex; flex-direction: column; gap: .7em; min-height: 0; }
+.face.back .inner { padding: 2.1em 2em 2.7em 2.6em; }
+.eyebrow {
+  font: 500 .58em/1.2 var(--font-ui); letter-spacing: .18em; text-transform: uppercase;
+  color: var(--pgold); margin: 0;
+}
+.page h2 { font-family: var(--font-display); font-weight: 600; font-size: 2em; line-height: 1.04; margin: 0; text-wrap: balance; color: var(--ink); }
+.rule { width: 3em; height: 1px; background: var(--pgold); flex: none; }
+.story { font-family: var(--font-body); font-size: .84em; line-height: 1.52; margin: 0; white-space: pre-wrap; color: var(--ink); flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.story { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--pgold) 45%, transparent) transparent; padding-right: .3em; }
+.dropcap::first-letter { font-family: var(--font-display); font-weight: 600; font-size: 3.1em; float: left; line-height: .78; padding: .07em .1em 0 0; color: var(--pgold); }
+.pgno { position: absolute; bottom: 1.2em; left: 0; right: 0; text-align: center; font: 500 .6em/1 var(--font-ui); letter-spacing: .2em; color: var(--ink-soft); z-index: 1; pointer-events: none; }
+.caption { font-family: var(--font-display); font-style: italic; font-size: 1.28em; line-height: 1.25; margin: 0; text-align: center; text-wrap: balance; color: var(--ink); }
+.date { font: 500 .56em/1 var(--font-ui); letter-spacing: .2em; text-transform: uppercase; text-align: center; color: var(--pgold); margin: 0; }
+
+.foto .inner { padding-top: 2.4em; gap: 1.1em; }
+.foto .frame { flex: 1; min-height: 0; margin-inline: .4em; }
+.foto .caps { display: grid; gap: .5em; padding-bottom: .2em; }
+
+.misto .frame { flex: 0 0 41%; min-height: 0; margin-top: .2em; --r: .8deg; }
+.misto .story { margin-top: .1em; }
+
+.colagem .inner { gap: .5em; }
+.colagem h2 { font-size: 1.7em; }
+.colagem .pols { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: .2em; }
+.pol { width: 11em; align-self: flex-start; background: var(--frame); padding: .5em .5em .35em; box-shadow: 0 .1em .15em rgba(0,0,0,.18), 0 .6em 1.2em -.5em rgba(0,0,0,.3); transform: rotate(var(--r, -2deg)); position: relative; }
+.pol .photo { aspect-ratio: 3 / 2; }
+.pol .cap { font-family: var(--font-display); font-style: italic; font-size: 1em; line-height: 1.15; text-align: center; margin: .45em 0 0; color: var(--ink); min-height: 1.15em; }
+.pol:nth-child(2) { align-self: flex-end; margin-top: -.9em; --r: 2.2deg; }
+.pol:nth-child(3) { align-self: center; margin-top: -.5em; --r: -1deg; margin-left: 1.5em; }
+
+
+/* ---------- navegação ---------- */
+.nav { display: flex; align-items: center; justify-content: center; gap: 14px; padding-top: 6px; }
+.nav button { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
+.nav svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#pos { min-width: 9.5em; text-align: center; font-weight: 500; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.hint { text-align: center; color: var(--muted); font-size: .8125rem; margin: 6px auto 0; max-width: 60ch; min-height: 1.3em; text-wrap: balance; }
+
+@media (prefers-reduced-motion: reduce) {
+  .leaf, .book, .floor, .tilt { transition-duration: .01s !important; }
+}
+</style>
+
+<header class="top">
+  <div class="name" id="appname">Álbum digital</div>
+</header>
+
+<main class="stage" id="stage">
+  <div class="tilt" id="tilt">
+    <div class="book" id="book" aria-live="off"></div>
+  </div>
+  <div class="floor" id="floor"></div>
+</main>
+
+<nav class="nav" aria-label="Folhear o álbum">
+  <button id="btnPrev" aria-label="Página anterior"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div id="pos" aria-live="polite">Capa</div>
+  <button id="btnNext" aria-label="Página seguinte"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+</nav>
+<p class="hint" id="hint"></p>
+
+<script>
+/* =====================================================================
+   FOTOGRAFIAS
+   ---------------------------------------------------------------------
+   As fotos são lidas da pasta "fotos", que tem de estar ao lado deste
+   ficheiro. Basta pôr lá as imagens com estes nomes:
+     capa.jpg, pagina-02.jpg, pagina-03.jpg, pagina-05.jpg, pagina-07.jpg,
+     pagina-09.jpg, pagina-11.jpg, pagina-12.jpg,
+     pagina-14-a.jpg, pagina-14-b.jpg, pagina-14-c.jpg
+   Também aceita .jpeg, .png ou .webp com o mesmo nome.
+   Se faltar alguma foto, aparece uma imagem de exemplo no lugar dela.
+   ===================================================================== */
+const ALBUM = {
+  id: "historia-luana",
+  titulo: "Uma História Chamada Nós",
+  subtitulo: "Luana & Guilherme · 2026",
+  autor: "Uma história escrita a dois",
+  pertenceLabel: "Uma história para",
+  pertence: "Luana",
+  fotoCapa: "fotos/capa.jpg",
+  dedicatoria: "Há histórias que começam sem ninguém estar à espera.\nEsta é a história de duas pessoas que se encontraram, se aproximaram e, pouco a pouco, descobriram que queriam ficar.",
+  contracapa: "E a história continua... ♥",
+
+  paginas: [
+    { tipo: "texto",
+      etiqueta: "Prólogo · início de 2026",
+      titulo: "Tudo começou por acaso",
+      texto: "No início de 2026, um convite aparentemente simples acabou por mudar duas vidas. Pépio, irmão da Luana e um dos melhores amigos do Guilherme, convidou o grupo para uma festa em casa de uma amiga.\n\nEntre as pessoas que lá estavam encontrava-se também a Luana. Quando o Guilherme a viu, reparou imediatamente nela: era mesmo muito bonita. O que ele ainda não sabia era que o interesse não era só dele. Do outro lado, também alguém tinha reparado nele."
+    },
+
+    { tipo: "foto",
+      foto: "fotos/pagina-02.jpg",
+      legenda: "Uma festa, um encontro inesperado e o início de uma história que nenhum dos dois estava à espera de viver.",
+      data: "Início de 2026"
+    },
+
+    { tipo: "misto",
+      etiqueta: "Os primeiros sinais",
+      titulo: "Entre conversas e olhares",
+      foto: "fotos/pagina-03.jpg",
+      texto: "Depois daquela festa, o tempo foi passando e as conversas foram surgindo cada vez mais naturalmente. Aos poucos, foram-se conhecendo melhor, descobrindo pequenas coisas um sobre o outro e percebendo que havia ali qualquer coisa especial.\n\nAté que, numa festa da Concavada, a Luana decidiu deixar de esconder o que sentia: contou-lhe que o achava bonito e que gostava de estar com ele. O Guilherme ficou sem saber bem o que responder. Também queria estar com ela, mas havia um detalhe que tornava tudo mais complicado: ela era irmã do seu melhor amigo."
+    },
+
+    { tipo: "texto",
+      etiqueta: "3 de julho de 2026",
+      titulo: "Um beliche e o primeiro beijo",
+      texto: "Alguns dias depois, o grupo voltou a juntar-se para passar o fim de semana em Vale de Mós, em casa da namorada do Pépio. Entre conversas, brincadeiras e planos, chegou a hora de dormir — e a Luana e o Guilherme acabaram no mesmo quarto, num beliche.\n\nEla insistiu em ficar a dormir no chão, mesmo tendo um lugar no beliche, só para estar mais perto dele, que estava na cama de baixo. E foi ali, num momento simples que acabou por se tornar inesquecível, que aconteceu o primeiro beijo.\n\nEra dia 3 de julho de 2026. A partir daí, aquela história já tinha uma memória que nenhum dos dois iria esquecer."
+    },
+
+    { tipo: "foto",
+      foto: "fotos/pagina-05.jpg",
+      legenda: "Às vezes, os momentos mais importantes acontecem nos sítios mais inesperados.",
+      data: "3 de julho de 2026"
+    },
+
+    { tipo: "texto",
+      etiqueta: "Depois do primeiro beijo",
+      titulo: "Sem promessas… por enquanto",
+      texto: "Depois daquele beijo, as conversas continuaram pelo Instagram. Apesar da aproximação e da vontade de estarem juntos, os dois tinham deixado claro, desde o início, que não procuravam nada sério.\n\nMas há sentimentos que não seguem os planos que fazemos. E, sem darem por isso, aquilo que parecia ser apenas uma coisa descontraída começou a ganhar outro significado. As mensagens, os encontros e a vontade de estarem juntos foram aproximando-os cada vez mais."
+    },
+
+    { tipo: "misto",
+      etiqueta: "São Martinho do Porto",
+      titulo: "Quando o sentimento cresceu",
+      foto: "fotos/pagina-07.jpg",
+      texto: "Cerca de duas semanas depois, o grupo inteiro foi passar férias a São Martinho do Porto. Desta vez, já era difícil fingir que entre a Luana e o Guilherme não existia algo mais. Os sentimentos tinham crescido e os dois estavam cada vez mais apaixonados.\n\nDurante esses dias, houve também momentos menos fáceis. Depois de se chatear com o irmão, a Luana ficou a chorar, e o Guilherme esteve ao lado dela, a tentar confortá-la. No meio das férias, dos amigos e de tudo o que estava a acontecer, aquele momento mostrou que já não se tratava apenas de atração: havia cuidado e preocupação um pelo outro."
+    },
+
+    { tipo: "texto",
+      etiqueta: "O último dia das férias",
+      titulo: "Uma pergunta difícil",
+      texto: "No último dia em São Martinho do Porto, a Luana começou a pensar que, depois da discussão com o irmão, talvez já não voltassem a sair todos juntos como antes. Por isso, decidiu fazer uma pergunta importante ao Guilherme: queria continuar a encontrá-la às escondidas ou preferia parar por ali?\n\nA pergunta apanhou-o de surpresa. Ficou nervoso, sem saber bem o que dizer. Gostava dela, mas também tinha medo da reação do Pépio e, acima de tudo, não queria arriscar perder a amizade de um dos seus melhores amigos. A primeira reação foi dar a entender que talvez fosse melhor parar. Mas a vontade de continuarem juntos acabou por falar mais alto. Depois de alguma insistência, decidiram continuar a encontrar-se."
+    },
+
+    { tipo: "foto",
+      foto: "fotos/pagina-09.jpg",
+      legenda: "As férias terminaram, mas aquilo que estava a nascer entre os dois estava longe de terminar.",
+      data: "Verão de 2026"
+    },
+
+    { tipo: "texto",
+      etiqueta: "Antes de oficializar",
+      titulo: "Pequenos encontros, um grande segredo",
+      texto: "A partir daí, começaram a encontrar-se sozinhos e às escondidas. Cada encontro era mais uma oportunidade para estarem juntos, longe dos olhares dos outros e das complicações que ainda os rodeavam.\n\nO que tinha começado com um olhar numa festa, seguido de conversas e de um beijo inesperado, transformava-se agora numa ligação cada vez mais forte. Mesmo sem saberem exatamente como tudo iria acabar, havia uma coisa que se tornava cada vez mais evidente: nenhum dos dois queria deixar aquela história para trás."
+    },
+
+    { tipo: "misto",
+      etiqueta: "8 de agosto de 2026",
+      titulo: "O dia em que tudo ganhou nome",
+      foto: "fotos/pagina-11.jpg",
+      texto: "Chegou então o dia 8 de agosto de 2026. Para tornar o momento especial, o Guilherme preparou um desenho dos dois, acompanhado por um pequeno texto. O cenário escolhido foi o Aquapolis, onde ficaram a ver o pôr do sol — ou, pelo menos, aquilo que conseguiram apanhar dele.\n\nNão foi preciso um grande espetáculo nem um plano complicado. O desenho, as palavras e aquele momento juntos foram suficientes. Foi ali que o pedido de namoro aconteceu e que a história deixou de ser apenas encontros e sentimentos escondidos. A partir daquele dia, passaram oficialmente a ser namorados."
+    },
+
+    { tipo: "foto",
+      foto: "fotos/pagina-12.jpg",
+      legenda: "Um desenho feito com carinho, algumas palavras e um pedido que mudou tudo.",
+      data: "8 de agosto de 2026 · Aquapolis"
+    },
+
+    { tipo: "texto",
+      etiqueta: "Desde então",
+      titulo: "Uma história que continua",
+      texto: "Desde o pedido de namoro, a Luana e o Guilherme têm construído a sua própria história. Têm vivido momentos felizes, criado memórias, partilhado gargalhadas e descoberto ainda mais um sobre o outro.\n\nClaro que nem todos os dias são perfeitos. Às vezes também há discussões, diferenças e pequenos momentos difíceis. Mas isso faz parte de duas pessoas que estão a aprender a caminhar juntas. O importante é tudo aquilo que continuam a escolher viver e construir lado a lado.\n\nE se tudo começou com um convite para uma festa, ninguém sabe ao certo onde esta história vai chegar. Mas há uma coisa bonita em tudo isto: aquela noite que parecia ser apenas mais uma acabou por dar início a algo que os dois guardam com muito carinho."
+    },
+
+    { tipo: "colagem",
+      titulo: "E ainda há tantos momentos por viver…",
+      itens: [
+        { foto: "fotos/pagina-14-a.jpg", legenda: "As primeiras memórias" },
+        { foto: "fotos/pagina-14-b.jpg", legenda: "Os momentos só dos dois" },
+        { foto: "fotos/pagina-14-c.jpg", legenda: "Tudo o que ainda está por vir" }
+      ]
+    }
+  ]
+};
+/* ======================= fim dos dados ======================= */
+
+
+/* ---------- utilitários ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const get = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
+const data = ALBUM;
+
+/* ---------- imagem de exemplo (quando não há foto) ---------- */
+const PALETTES = [
+  ["#f9d9df", "#fdeee2", "#f4a6a0", "#c97a8e", "#8f4560"],
+  ["#f3d4e3", "#fbe8dc", "#f2a68f", "#b87c9f", "#7d4668"],
+  ["#fde0d6", "#fff1e1", "#ee9a8a", "#d18a8a", "#a05468"],
+  ["#ead3e8", "#fbe6e4", "#f5b48f", "#b77a9c", "#7a4466"]
+];
+let seedCounter = 0;
+function placeholder(seed) {
+  const p = PALETTES[seed % PALETTES.length];
+  const sx = 200 + ((seed * 173) % 460);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/><circle cx="${sx}" cy="${200 + (seed % 3) * 25}" r="70" fill="${p[2]}"/><path d="M0 420 Q200 330 400 400 T800 380 V600 H0Z" fill="${p[3]}"/><path d="M0 490 Q250 410 480 470 T800 450 V600 H0Z" fill="${p[4]}"/></svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+/* ---------- construção das páginas (só leitura) ---------- */
+const ed = (path, tag, cls) => {
+  const v = get(data, path);
+  return v ? `<${tag} class="${cls || ""}">${esc(v)}</${tag}>` : "";
+};
+const pic = (path, cls) => {
+  const seed = seedCounter++;
+  const src = get(data, path) || placeholder(seed);
+  return `<figure class="photo ${cls || ""}"><img src="${esc(src)}" alt="" draggable="false" data-seed="${seed}"></figure>`;
+};
+
+/* Se a foto não existir, tenta outras extensões e por fim mostra a imagem de exemplo. */
+const EXTS = [".jpg", ".jpeg", ".png", ".webp", ".JPG", ".JPEG", ".PNG"];
+function onImgError(e) {
+  const img = e.target;
+  const orig = img.dataset.orig || (img.dataset.orig = img.getAttribute("src"));
+  if (orig.startsWith("data:")) return;
+  const base = orig.replace(/\.[^./]+$/, "");
+  const i = Number(img.dataset.try || 0);
+  if (i < EXTS.length) {
+    img.dataset.try = i + 1;
+    const cand = base + EXTS[i];
+    if (cand !== orig) { img.src = cand; return; }
+    return onImgError(e);
+  }
+  img.removeEventListener("error", onImgError);
+  img.src = placeholder(Number(img.dataset.seed || 0));
+}
+
+function faceHTML(f, side) {
+  const k = f.kind, sd = `data-side="${side}"`;
+  if (k === "cover") return `<div class="face ${side} cover" ${sd}><div class="foilbox">
+    ${ed("pertenceLabel", "p", "owner-label")}
+    ${ed("pertence", "p", "owner")}
+    <p class="flourish" aria-hidden="true">♥</p>
+    ${pic("fotoCapa", "arch")}
+    ${ed("titulo", "h1", "")}
+    ${ed("subtitulo", "p", "sub")}
+    ${ed("autor", "p", "eyebrow")}
+  </div></div>`;
+  if (k === "inside") return `<div class="face ${side} endpaper" ${sd}>${ed("dedicatoria", "p", "ded")}</div>`;
+  if (k === "insideBack") return `<div class="face ${side} endpaper" ${sd}><div class="emblem"></div></div>`;
+  if (k === "backCover") return `<div class="face ${side} backcover" ${sd}><div class="foilbox"><div class="emblem"></div>${ed("contracapa", "p", "fim")}</div></div>`;
+  if (k === "blank") return `<div class="face ${side} blank" ${sd}></div>`;
+
+  const i = f.index, b = `paginas.${i}`, n = i + 1, p = f.page;
+  const num = `<span class="pgno">${n}</span>`;
+  if (p.tipo === "foto") return `<div class="face ${side} page foto" ${sd}><div class="inner">
+      <div class="frame">${pic(b + ".foto")}</div>
+      <div class="caps">${ed(b + ".legenda", "p", "caption")}${ed(b + ".data", "p", "date")}</div>
+    </div>${num}</div>`;
+  if (p.tipo === "misto") return `<div class="face ${side} page misto" ${sd}><div class="inner">
+      <div class="frame">${pic(b + ".foto")}</div>
+      ${ed(b + ".etiqueta", "p", "eyebrow")}
+      ${ed(b + ".titulo", "h2", "")}
+      ${ed(b + ".texto", "div", "story")}
+    </div>${num}</div>`;
+  if (p.tipo === "colagem") {
+    const items = (p.itens || []).slice(0, 3).map((_, k) => `<div class="pol">${pic(`${b}.itens.${k}.foto`)}${ed(`${b}.itens.${k}.legenda`, "p", "cap")}</div>`).join("");
+    return `<div class="face ${side} page colagem" ${sd}><div class="inner">
+      ${ed(b + ".titulo", "h2", "")}
+      <span class="rule"></span>
+      <div class="pols">${items}</div>
+    </div>${num}</div>`;
+  }
+  return `<div class="face ${side} page texto" ${sd}><div class="inner">
+      ${ed(b + ".etiqueta", "p", "eyebrow")}
+      ${ed(b + ".titulo", "h2", "")}
+      <span class="rule"></span>
+      ${ed(b + ".texto", "div", "story dropcap")}
+    </div>${num}</div>`;
+}
+
+let faces = [], leaves = [], L = 0, F = 0;
+const book = $("#book");
+
+function buildBook() {
+  seedCounter = 0;
+  faces = [{ kind: "cover" }, { kind: "inside" }];
+  data.paginas.forEach((page, index) => faces.push({ kind: "page", page, index }));
+  if (data.paginas.length % 2 === 1) faces.push({ kind: "blank" });
+  faces.push({ kind: "insideBack" }, { kind: "backCover" });
+  F = faces.length; L = F / 2;
+  let html = "";
+  for (let i = 0; i < L; i++) html += `<div class="leaf">${faceHTML(faces[2 * i], "front")}${faceHTML(faces[2 * i + 1], "back")}</div>`;
+  book.innerHTML = html;
+  book.querySelectorAll("img").forEach(img => {
+    img.addEventListener("error", onImgError);
+    if (img.complete && img.naturalWidth === 0 && img.getAttribute("src")) onImgError({ target: img });
+  });
+  leaves = [...book.querySelectorAll(".leaf")];
+  document.title = data.titulo || "Álbum 3D";
+  $("#appname").textContent = data.titulo || "Álbum digital";
+}
+
+/* ---------- navegação ---------- */
+let s = 0, side = "r";   // s = nº de folhas viradas; side = página visível em ecrã estreito
+const narrowMQ = matchMedia("(max-width: 759px)");
+const Z = 1;
+
+function apply() {
+  const narrow = narrowMQ.matches;
+  if (s <= 0) { s = 0; side = "r"; }
+  if (s >= L) { s = L; side = "l"; }
+  leaves.forEach((lf, i) => {
+    lf.style.transform = i < s
+      ? `rotateY(-180deg) translateZ(${-(i + 1) * Z}px)`
+      : `rotateY(0deg) translateZ(${(L - i) * Z}px)`;
+  });
+  let shift;
+  if (narrow) shift = side === "r" ? -0.5 : 0.5;
+  else shift = s === 0 ? -0.5 : (s === L ? 0.5 : 0);
+  book.style.transform = `translateX(calc(var(--pw) * ${shift}))`;
+  $("#floor").style.transform = `scaleX(${shift !== 0 ? 0.55 : 1})`;
+
+  const vis = narrow ? [side === "r" ? 2 * s : 2 * s - 1]
+    : [s > 0 ? 2 * s - 1 : null, s < L ? 2 * s : null].filter(v => v !== null);
+  const nums = vis.map(i => (faces[i] && faces[i].kind === "page" ? faces[i].index + 1 : null)).filter(n => n !== null);
+  faces.forEach((_, i) => {
+    const el = leaves[i >> 1] && leaves[i >> 1].children[i & 1];
+    if (el) el.classList.toggle("vis", vis.includes(i));
+  });
+  let label;
+  if (nums.length === 2) label = `Páginas ${nums[0]}–${nums[1]}`;
+  else if (nums.length === 1) label = `Página ${nums[0]}`;
+  else label = vis.includes(0) ? "Capa" : (vis.includes(F - 1) ? "Contracapa" : "Guardas");
+  $("#pos").textContent = label;
+
+  $("#btnPrev").disabled = s === 0;
+  $("#btnNext").disabled = s === L;
+  $("#hint").textContent = s === 0 ? "Clica na capa, usa as setas ou desliza para folhear." : "";
+}
+function next() {
+  if (narrowMQ.matches) {
+    if (side === "r") { if (s < L) { s++; side = "l"; } }
+    else if (s < L) side = "r";
+  } else if (s < L) s++;
+  apply();
+}
+function prev() {
+  if (narrowMQ.matches) {
+    if (side === "r") { if (s > 0) side = "l"; }
+    else if (s > 0) { s--; side = "r"; }
+  } else if (s > 0) s--;
+  apply();
+}
+narrowMQ.addEventListener("change", e => {
+  if (e.matches) side = s === 0 ? "r" : "l";
+  apply();
+});
+
+$("#btnNext").addEventListener("click", next);
+$("#btnPrev").addEventListener("click", prev);
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") next();
+  if (e.key === "ArrowLeft") prev();
+});
+
+/* virar a página ao clicar e com deslize */
+let swiped = false, px = 0, py = 0, pid = null;
+book.addEventListener("click", e => {
+  if (swiped) { swiped = false; return; }
+  const face = e.target.closest(".face");
+  if (!face) return;
+  if (narrowMQ.matches) (e.clientX > innerWidth / 2 ? next : prev)();
+  else (face.classList.contains("front") ? next : prev)();
+});
+const stage = $("#stage");
+stage.addEventListener("pointerdown", e => { px = e.clientX; py = e.clientY; pid = e.pointerId; swiped = false; });
+stage.addEventListener("pointerup", e => {
+  if (e.pointerId !== pid) return;
+  const dx = e.clientX - px, dy = e.clientY - py;
+  if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.5) { swiped = true; (dx < 0 ? next : prev)(); }
+});
+
+/* inclinação suave com o rato */
+const tilt = $("#tilt");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+stage.addEventListener("pointermove", e => {
+  if (reduce.matches || e.pointerType !== "mouse") return;
+  const r = stage.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+  tilt.style.setProperty("--ry", (x * 9).toFixed(2) + "deg");
+  tilt.style.setProperty("--rx", (7 - y * 6).toFixed(2) + "deg");
+});
+stage.addEventListener("pointerleave", () => { tilt.style.removeProperty("--ry"); tilt.style.removeProperty("--rx"); });
+
+buildBook();
+apply();
+</script>
+
+</html>

@@ -1,0 +1,15 @@
+Põe aqui as fotos com estes nomes:
+
+capa.jpg          -> capa
+pagina-02.jpg     -> página 2
+pagina-03.jpg     -> página 3
+pagina-05.jpg     -> página 5
+pagina-07.jpg     -> página 7
+pagina-09.jpg     -> página 9
+pagina-11.jpg     -> página 11
+pagina-12.jpg     -> página 12
+pagina-14-a.jpg   -> página 14, 1.ª polaroid
+pagina-14-b.jpg   -> página 14, 2.ª polaroid
+pagina-14-c.jpg   -> página 14, 3.ª polaroid
+
+Também serve .jpeg, .png ou .webp.
